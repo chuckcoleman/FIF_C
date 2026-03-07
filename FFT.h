@@ -1,7 +1,10 @@
+#ifndef FFT_H
+#define FFT_H
+
 #include <fftw3.h>
 
-double* realFFT(double *, int);
+fftwl_complex *fft_dir(double *x, int N);
+double *fft_inv(fftwl_complex *x, int N);
+double *realFFT(double *x, int N);
 
-fftwl_complex* fft_dir(double *, int);
-
-double* fft_inv(fftwl_complex *, int);
+#endif

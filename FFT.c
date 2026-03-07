@@ -7,106 +7,133 @@
 
     Authors: Igor Bertello, Emanuele Papini
     Affiliation(s): IAPS - INAF
+    
+    Revised: Chuck Coleman
+    Affiliation: Timely Analytics, LLC
 
     Dependencies: FFTW3
 
 */
 
-#include "FFT.h"
 #include <stdlib.h>
-//#include <fftw3.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <fftw3.h>
+#include "FFT.h"
 
+/*
+ * Forward FFT of a real signal x of length N.
+ * Returns an fftwl_complex array of length N allocated with fftwl_malloc.
+ * Caller must free with fftwl_free().
+ */
+fftwl_complex *fft_dir(double *x, int N)
+{
+    if (x == NULL || N <= 0) {
+        return NULL;
+    }
 
-double* realFFT(double * f, int N){
+    fftwl_complex *in  = (fftwl_complex *)fftwl_malloc(sizeof(fftwl_complex) * N);
+    fftwl_complex *out = (fftwl_complex *)fftwl_malloc(sizeof(fftwl_complex) * N);
 
-  fftwl_complex *in=NULL, *out=NULL;
-  fftwl_plan p;
- 
-  double *fout;
-  bool foutB;
+    if (in == NULL || out == NULL) {
+        if (in)  fftwl_free(in);
+        if (out) fftwl_free(out);
+        return NULL;
+    }
 
-  
-  fout=(double *)malloc(sizeof(double)*N);
-  foutB=1;
-  
-  
-  in=(fftwl_complex*)fftwl_malloc(sizeof(fftwl_complex)*N);
-  out=(fftwl_complex*)fftwl_malloc(sizeof(fftwl_complex) * N);
-  p   = fftwl_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-  fflush(NULL);
+    for (int i = 0; i < N; i++) {
+        in[i][0] = (long double)x[i];
+        in[i][1] = 0.0L;
+    }
 
-  // compila il vettore in
-  for(int i=0; i<N; i++){
-     in[i][0]=f[i];
-     in[i][1]=0;
-  }
+    fftwl_plan p = fftwl_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+    if (p == NULL) {
+        fftwl_free(in);
+        fftwl_free(out);
+        return NULL;
+    }
 
-  fftwl_execute(p); 
+    fftwl_execute(p);
+    fftwl_destroy_plan(p);
+    fftwl_free(in);
 
-  for(int i=0; i<N; i++){
-     fout[i]=out[i][0];
-  }
-  
-  fftwl_destroy_plan(p);
-  fftwl_free(in); fftwl_free(out); // */
-
-return fout;
+    return out;
 }
 
+/*
+ * Inverse FFT of a complex signal x of length N.
+ * Returns a real array of length N allocated with malloc.
+ * Caller must free with free().
+ */
+double *fft_inv(fftwl_complex *x, int N)
+{
+    if (x == NULL || N <= 0) {
+        return NULL;
+    }
 
+    fftwl_complex *in  = (fftwl_complex *)fftwl_malloc(sizeof(fftwl_complex) * N);
+    fftwl_complex *out = (fftwl_complex *)fftwl_malloc(sizeof(fftwl_complex) * N);
 
+    if (in == NULL || out == NULL) {
+        if (in)  fftwl_free(in);
+        if (out) fftwl_free(out);
+        return NULL;
+    }
 
-fftwl_complex* fft_dir(double *f, int N){
+    memcpy(in, x, sizeof(fftwl_complex) * N);
 
-  double *fout;
-     
-  fftwl_complex *in, *out;
-  fftwl_plan p;
+    fftwl_plan p = fftwl_plan_dft_1d(N, in, out, FFTW_BACKWARD, FFTW_ESTIMATE);
+    if (p == NULL) {
+        fftwl_free(in);
+        fftwl_free(out);
+        return NULL;
+    }
 
-  in  = (fftwl_complex*) fftwl_malloc(sizeof(fftwl_complex) * N);
-  out = (fftwl_complex*) fftwl_malloc(sizeof(fftwl_complex) * N);
-  p   = fftwl_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-  
-  // compila il vettore i
-  for(int i=0; i<N; i++){
-     in[i][0]=f[i];
-     in[i][1]=0;
-  }
-  
-  fftwl_execute(p); 
+    fftwl_execute(p);
+    fftwl_destroy_plan(p);
+    fftwl_free(in);
 
-  fftwl_destroy_plan(p);
-  fftwl_free(in); 
+    double *y = (double *)malloc(sizeof(double) * N);
+    if (y == NULL) {
+        fftwl_free(out);
+        return NULL;
+    }
 
-return out;
+    for (int i = 0; i < N; i++) {
+        y[i] = (double)(out[i][0] / (long double)N);
+    }
 
+    fftwl_free(out);
+    return y;
 }
 
+/*
+ * Real part of FFT of a real signal x of length N.
+ * Returns a real array of length N allocated with malloc.
+ * Caller must free with free().
+ */
+double *realFFT(double *x, int N)
+{
+    if (x == NULL || N <= 0) {
+        return NULL;
+    }
 
-double* fft_inv(fftwl_complex *f, int N){
+    fftwl_complex *fx = fft_dir(x, N);
+    if (fx == NULL) {
+        return NULL;
+    }
 
-  double *fout;
-     
-  fout=(double *)malloc(sizeof(double)*N);
+    double *y = (double *)malloc(sizeof(double) * N);
+    if (y == NULL) {
+        fftwl_free(fx);
+        return NULL;
+    }
 
+    for (int i = 0; i < N; i++) {
+        y[i] = (double)fx[i][0];
+    }
 
-  fftwl_complex  *out;
-  fftwl_plan p;
-  
-  out = (fftwl_complex*) fftwl_malloc(sizeof(fftwl_complex) * N);
-
-  p   = fftwl_plan_dft_1d(N, f, out, FFTW_BACKWARD, FFTW_ESTIMATE);
-
-  fftwl_execute(p); 
-  // compila il vettore out
-  for(int i=0; i<N; i++){
-     fout[i]=out[i][0]/N;
-  } 
-
-  fftwl_destroy_plan(p);
-
-  fftwl_free(out); 
-
-return fout;
-
+    fftwl_free(fx);
+    return y;
 }

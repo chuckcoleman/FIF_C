@@ -1,0 +1,24 @@
+CXX = clang++
+CXXFLAGS = -x c++ -O3 -Wall -Wno-nullability-completeness -I/Users/Common/local/fftw3l/include
+LDFLAGS = -L/Users/Common/local/fftw3l/lib
+LDLIBS = -lfftw3l -lm
+
+OBJ = Fif.o FFT.o interp.o TestFIF.o
+
+test: $(OBJ)
+	$(CXX) $(OBJ) $(LDFLAGS) $(LDLIBS) -o $@
+
+Fif.o: Fif.c Fif.h FFT.h interp.h
+	$(CXX) $(CXXFLAGS) -c Fif.c -o $@
+
+FFT.o: FFT.c FFT.h
+	$(CXX) $(CXXFLAGS) -c FFT.c -o $@
+
+interp.o: interp.c interp.h
+	$(CXX) $(CXXFLAGS) -c interp.c -o $@
+
+TestFIF.o: TestFIF.c Fif.h
+	$(CXX) $(CXXFLAGS) -c TestFIF.c -o $@
+
+clean:
+	rm -f *.o test
