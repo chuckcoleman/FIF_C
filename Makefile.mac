@@ -1,3 +1,6 @@
+# Macintosh only
+# Developed for MacOS 13.7.8
+
 CXX = clang++
 CXXFLAGS = -x c++ -O3 -Wall -Wno-nullability-completeness -I/Users/Common/local/fftw3l/include
 LDFLAGS = -L/Users/Common/local/fftw3l/lib
