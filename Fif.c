@@ -403,8 +403,8 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
         return IMF;
 
     for (int i = 0; i < MaxMin.nout; i++)
-        printf("%d ", MaxMin.maxmins[i]);
-    printf("\n");
+/*        printf("%d ", MaxMin.maxmins[i]);
+    printf("\n");  Spammy printout removed  CC 2/21/26 */
 
     numIMF = 0;
     cont = 0;
