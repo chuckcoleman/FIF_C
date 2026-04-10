@@ -48,13 +48,17 @@ double *getMask(double *y, int n, double k, int *dim_a, double tol)
 % k could be an integer or not an integer.
 % y is the area under the curve for each bar
 */
-    int lim;
-    double m;
-    double *a, *f_appo;
-    double s, s2, t, t1, t2, c;
-    double parz, extra, new_k, dx, dy;
-    double Norm1;
+    int lim = 0;
+    double m = 0.0;
+    double *a = NULL, *f_appo = NULL;
+    double s = 0.0, s2 = 0.0, t = 0.0, t1 = 0.0, t2 = 0.0, c = 0.0;
+    double parz = 0.0, extra = 0.0, new_k = 0.0, dx = 0.0, dy = 0.0;
+    double Norm1 = 0.0;
     bool f_appoB = 0;
+
+    if (y == NULL || dim_a == NULL || n <= 0) {
+        return 0;
+    }
 
     m = (double)(n - 1) / 2.;
 
@@ -64,23 +68,37 @@ double *getMask(double *y, int n, double k, int *dim_a, double tol)
         {
             lim = 2 * (int)k + 1;
 
-            a = (double *)malloc(sizeof(double) * lim);
+            a = (double *)calloc((size_t)lim, sizeof(double));
+            if (a == NULL)
+                return 0;
 
             for (int i = 1; i < lim + 1; i++)
             {
+                int is, it, jstart, jend_excl;
                 s = ((double)(i - 1) * (2 * m + 1)) / (double)(lim) + 1;
                 t = (double)(i) * (2 * m + 1) / (double)(lim);
                 s2 = ceil(s) - s;
                 t1 = t - floor(t);
 
-                if (floor(t) < 1)
-                    printf("#Ops\n");
+                is = (int)ceil(s) - 1;
+                it = (int)floor(t) - 1;
+                if (is < 0) is = 0;
+                if (it < 0) it = 0;
+                if (is >= n) is = n - 1;
+                if (it >= n) it = n - 1;
 
                 parz = 0;
-                for (int j = (int)ceil(s) - 1; j < (int)floor(t); j++)
+                jstart = is + 1;
+                jend_excl = it;
+                if (jstart < 0) jstart = 0;
+                if (jend_excl < 0) jend_excl = 0;
+                if (jstart > n) jstart = n;
+                if (jend_excl > n) jend_excl = n;
+                if (jstart > jend_excl) jstart = jend_excl;
+                for (int j = jstart; j < jend_excl; j++)
                     parz += y[j];
 
-                a[i - 1] = parz + s2 * y[(int)ceil(s) - 1] + t1 * y[(int)floor(t) - 1];
+                a[i - 1] = parz + s2 * y[is] + t1 * y[it];
             }
             *dim_a = lim;
         }
@@ -90,7 +108,9 @@ double *getMask(double *y, int n, double k, int *dim_a, double tol)
             extra = k - new_k;
             c = (2 * m + 1) / (2 * new_k + 1 + 2 * extra);
 
-            a = (double *)malloc(sizeof(double) * (2 * (int)new_k + 3));
+            a = (double *)calloc((size_t)(2 * (int)new_k + 3), sizeof(double));
+            if (a == NULL)
+                return 0;
 
             t = extra * c + 1;
             t1 = t - floor(t);
@@ -101,60 +121,143 @@ double *getMask(double *y, int n, double k, int *dim_a, double tol)
                 return 0;
             }
 
-            parz = 0;
-            for (int i = 0; i < (int)floor(t); i++)
-                parz += y[i];
+            {
+                int it0 = (int)floor(t) - 1;
+                int jend0 = (int)floor(t);
+                if (it0 < 0) it0 = 0;
+                if (it0 >= n) it0 = n - 1;
+                if (jend0 < 0) jend0 = 0;
+                if (jend0 > n) jend0 = n;
 
-            a[0] = parz + t1 * y[(int)floor(t) - 1];
+                parz = 0;
+                for (int i = 0; i < it0; i++)
+                    parz += y[i];
+
+                a[0] = parz + t1 * y[it0];
+            }
 
             for (int i = 2; i < (int)(2 * new_k) + 3; i++)
             {
+                int is, it, jstart, jend_excl;
                 s = extra * c + (double)(i - 2) * c + 1;
                 t = extra * c + (double)(i - 1) * c;
                 s2 = ceil(s) - s;
                 t1 = t - floor(t);
 
+                is = (int)ceil(s) - 1;
+                it = (int)floor(t) - 1;
+                if (is < 0) is = 0;
+                if (it < 0) it = 0;
+                if (is >= n) is = n - 1;
+                if (it >= n) it = n - 1;
+
                 parz = 0;
-                for (int j = (int)ceil(s) - 1; j < (int)floor(t); j++)
+                jstart = is + 1;
+                jend_excl = it;
+                if (jstart < 0) jstart = 0;
+                if (jend_excl < 0) jend_excl = 0;
+                if (jstart > n) jstart = n;
+                if (jend_excl > n) jend_excl = n;
+                if (jstart > jend_excl) jstart = jend_excl;
+                for (int j = jstart; j < jend_excl; j++)
                     parz += y[j];
 
-                a[i - 1] = parz + s2 * y[(int)ceil(s) - 1] + t1 * y[(int)floor(t) - 1];
+                a[i - 1] = parz + s2 * y[is] + t1 * y[it];
             }
 
             t2 = ceil(t) - t;
 
-            parz = 0;
-            for (int i = (int)ceil(t) - 1; i < n; i++)
-                parz += y[i];
+            {
+                int is_tail = (int)ceil(t) - 1;
+                int jstart_tail = (int)ceil(t) - 1;
+                if (is_tail < 0) is_tail = 0;
+                if (is_tail >= n) is_tail = n - 1;
+                if (jstart_tail < 0) jstart_tail = 0;
+                if (jstart_tail > n) jstart_tail = n;
 
-            a[(int)(2 * new_k) + 2] = parz + t2 * y[(int)ceil(t) - 1];
+                parz = 0;
+                for (int i = jstart_tail + 1; i < n; i++)
+                    parz += y[i];
+
+                a[(int)(2 * new_k) + 2] = parz + t2 * y[is_tail];
+            }
             *dim_a = 2 * (int)new_k + 3;
         }
     }
     else
     { 
         dx = 0.01;
-        f_appo = (double *)malloc(sizeof(double) * n);
+        f_appo = (double *)calloc((size_t)n, sizeof(double));
+        if (f_appo == NULL)
+            return 0;
         f_appoB = 1;
         
-        double *xappo = (double *)malloc(sizeof(double) * ((int)m + 1));
+        double *xappo = (double *)calloc((size_t)((int)m + 1), sizeof(double));
+        if (xappo == NULL) {
+            if (f_appoB) {
+                free(f_appo);
+                f_appoB = 0;
+            }
+            return 0;
+        }
         for (int i = 0; i < ((int)m + 1); i++) xappo[i] = (double)i;
 
         for (int i = 0; i < n; i++) f_appo[i] = y[i] / dx;
+        if (k == 0) {
+            free(xappo);
+            free(f_appo);
+            return 0;
+        }
         dy = m * dx / k;
         (void)dy;
 
         lim = (int)floor(k); 
-        double *xappo_interp = (double *)malloc(sizeof(double) * lim);
+        if (lim <= 0) {
+            free(xappo);
+            if (f_appoB) {
+                free(f_appo);
+                f_appoB = 0;
+            }
+            return 0;
+        }
+
+        double *xappo_interp = (double *)calloc((size_t)lim, sizeof(double));
+        if (xappo_interp == NULL) {
+            free(xappo);
+            if (f_appoB) {
+                free(f_appo);
+                f_appoB = 0;
+            }
+            return 0;
+        }
         for (int i = 0; i < lim; i++) xappo_interp[i] = (double)i * m / k;
         
         double *f_appo_interp = interp_linear(1, (int)m + 1, xappo, &f_appo[(int)m], lim, xappo_interp);
+        if (f_appo_interp == NULL) {
+            free(xappo_interp);
+            free(xappo);
+            if (f_appoB) {
+                free(f_appo);
+                f_appoB = 0;
+            }
+            return 0;
+        }
 
-        a = (double *)malloc(sizeof(double) * (2 * lim - 1));
+        a = (double *)calloc((size_t)(2 * lim - 1), sizeof(double));
+        if (a == NULL) {
+            free(f_appo_interp);
+            free(xappo_interp);
+            free(xappo);
+            if (f_appoB) {
+                free(f_appo);
+                f_appoB = 0;
+            }
+            return 0;
+        }
         *dim_a = 2 * lim - 1; 
 
         for (int i = 0; i < lim - 1; i++) a[i] = f_appo_interp[lim - 1 - i];
-        memcpy(a + lim - 1, f_appo_interp, lim * sizeof(double));
+        memcpy(a + lim - 1, f_appo_interp, (size_t)lim * sizeof(double));
 
         free(f_appo_interp);
         free(xappo_interp);
@@ -166,9 +269,12 @@ double *getMask(double *y, int n, double k, int *dim_a, double tol)
 
         if (fabs(Norm1 - 1) > tol)
         {
-            printf("\n\n Warning!\n\n");
-            printf(" Area under the mask equals %2.20f\n", Norm1);
-            printf(" it should be equal to 1\n We rescale it using its norm 1\n\n");
+            if (Norm1 == 0) {
+                free(a);
+                if (f_appoB)
+                    free(f_appo);
+                return 0;
+            }
 
             for (int i = 0; i < *dim_a; i++)
                 a[i] /= Norm1;
@@ -188,10 +294,10 @@ Maxmins Maxmins_v3_8(double *f, unsigned int N, double tol)
     unsigned int *Mins;
     double *df;
     double *f1, *z = NULL;  // z never allocated here; initialize for safety
-    unsigned int N_old, last_df;
+    unsigned int N_old, last_df = 0;
     double fappo1, fappo2, fappo3;
     int h, cmaxs, cmins, c;
-    int posc;
+    int posc = 0;
     int ctot, mac = 0, mic = 0;
     Maxmins valori;
     bool dfB = 0, f1B = 0;
@@ -204,9 +310,20 @@ Maxmins Maxmins_v3_8(double *f, unsigned int N, double tol)
     valori.nout = 0;
     valori.maxmins = NULL;
 
+    if (f == NULL || N < 2)
+        return valori;
+
     Maxs = (unsigned int *)malloc(sizeof(unsigned int) * N);
     Mins = (unsigned int *)malloc(sizeof(unsigned int) * N);
     df   = (double *)malloc(sizeof(double) * (N - 1));
+
+    if (Maxs == NULL || Mins == NULL || df == NULL)
+    {
+        if (Maxs) free(Maxs);
+        if (Mins) free(Mins);
+        if (df) free(df);
+        return valori;
+    }
 
     MMB = MmB = dfB = 1;
 
@@ -214,7 +331,7 @@ Maxmins Maxmins_v3_8(double *f, unsigned int N, double tol)
         df[x] = f[x + 1] - f[x];
 
     h = 1;
-    while ((h < N) && (fabs(df[h - 1] / f[h - 1]) <= tol))
+    while ((h < N) && (f[h - 1] != 0.0) && (fabs(df[h - 1] / f[h - 1]) <= tol))
         h++;
 
     if (dfB)
@@ -232,6 +349,16 @@ Maxmins Maxmins_v3_8(double *f, unsigned int N, double tol)
         f1B = 1;
     if ((df = (double *)malloc(sizeof(double) * (N + h))) != NULL)
         dfB = 1;
+    if (!f1B || !dfB)
+    {
+        if (f1B) free(f1);
+        if (dfB) free(df);
+        if (MmB) free(Mins);
+        if (MMB) free(Maxs);
+        valori.nout = 0;
+        valori.maxmins = NULL;
+        return valori;
+    }
 
     for (int i = 0; i < N; i++)
         f1[i] = f[i];
@@ -310,11 +437,23 @@ Maxmins Maxmins_v3_8(double *f, unsigned int N, double tol)
 
     ctot = cmaxs + cmins;
     valori.nout = ctot;
-    valori.maxmins = (unsigned int *)malloc(sizeof(unsigned int) * ctot);
+    if (ctot > 0)
+    {
+        valori.maxmins = (unsigned int *)malloc(sizeof(unsigned int) * ctot);
+        if (valori.maxmins == NULL)
+        {
+            valori.nout = 0;
+            if (f1B) free(f1);
+            if (dfB) free(df);
+            if (MmB) free(Mins);
+            if (MMB) free(Maxs);
+            return valori;
+        }
 
-    for (int i = 0; i < cmaxs; i++) valori.maxmins[i] = Maxs[i];
-    for (int i = 0; i < cmins; i++) valori.maxmins[i + cmaxs] = Mins[i];
-    qsort(valori.maxmins, ctot, sizeof(unsigned int), comp);
+        for (int i = 0; i < cmaxs; i++) valori.maxmins[i] = Maxs[i];
+        for (int i = 0; i < cmins; i++) valori.maxmins[i + cmaxs] = Mins[i];
+        qsort(valori.maxmins, ctot, sizeof(unsigned int), comp);
+    }
 
     if (f1B) free(f1);
     if (dfB) free(df);
@@ -327,15 +466,25 @@ Maxmins Maxmins_v3_8(double *f, unsigned int N, double tol)
 }
 
 //********************** FIF_v2_1 *******************************
+static void free_maxmins_struct(Maxmins *mm)
+{
+    if (mm != NULL && mm->maxmins != NULL)
+    {
+        free(mm->maxmins);
+        mm->maxmins = NULL;
+        mm->nout = 0;
+    }
+}
+
 Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
 {
-    int numIMF, dim_a, nh;
+    int numIMF = 0, completedIMF = 0, dim_a, nh;
     unsigned int k_pp;
     int in_step, ext_sig;
     int posF; 
     double df;
     int Nza, Nxs, N_old, N_r;
-    int cont;
+    int cont = 0;
     double rho, theta, thetan;
     double Norm1 = 1, m, logM = 0;
     double SD, norm_n, norm_d;
@@ -350,7 +499,7 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
     unsigned int conta = 0, size;
     bool hB, ifftAB, fappoB, maskB, mappoB;
 
-    fftwl_complex *fftH, *ffth_new, *ffth_old;
+    fftwl_complex *fftH = NULL, *ffth_new = NULL, *ffth_old = NULL;
     Fif_t IMF, *IMFappo, *next;
     double tol = 10e-12;
 
@@ -365,7 +514,11 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
 
     memset(&IMF, 0, sizeof(IMF));
 
+    if (maxIMF == NULL)
+        return IMF;
+
     hB = ifftAB = fappoB = maskB = mappoB = 0;
+    free_maxmins_struct(&MaxMin);
 
     IMFappo = &IMF;
     size = sizeM;
@@ -373,34 +526,43 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
     Norm1 = 0;
     for (int i = 0; i < N; i++)
         Norm1 += fabs(f[i]);
+
+    if (Norm1 == 0)
+        goto cleanup_success;
+
     for (int i = 0; i < N; i++)
         f[i] /= Norm1;
 
     N_r = 0;
     fappo = (double *)malloc(sizeof(double) * (N + 11));
+    if (fappo == NULL)
+        goto cleanup_success;
     fappoB = 1;
+
     for (int i = 0; i < N; i++)
     {
         if (fabs(f[i]) > tol)
             fappo[N_r++] = f[i];
     }
     if (N_r == 0)
-        return IMF;
+        goto cleanup_success;
 
     for (int i = 0; i < 10; i++)
         fappo[N_r + i] = fappo[i];
 
+    free_maxmins_struct(&MaxMin);
     MaxMin = Maxmins_v3_8(fappo, N_r + 10, tol);
 
     if (fappoB)
     {
         free(fappo);
+        fappo = NULL;
         fappoB = 0;
     }
 
     k_pp = MaxMin.nout;
     if (k_pp == 0)
-        return IMF;
+        goto cleanup_success;
 
 /*    for (int i = 0; i < MaxMin.nout; i++)
         printf("%d ", MaxMin.maxmins[i]);
@@ -408,18 +570,20 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
 
     numIMF = 0;
     cont = 0;
-    
-    while ((numIMF < n) && (k_pp > ExtPoints))
+
+    while ((completedIMF < n) && (k_pp > ExtPoints))
     {
-        numIMF++;
+        numIMF = completedIMF + 1;
         cont++;
         SD = 1;
 
         h = (double *)malloc(sizeof(double) * N);
+        if (h == NULL)
+            goto cleanup_success;
         hB = 1;
         memcpy(h, f, sizeof(double) * N);
         nh = N;
-        
+
         m = round(2 * N_r / (k_pp + 1) * Xi);
 
         if (numIMF > 1)
@@ -432,20 +596,22 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
 
         logM = m;
         IMFappo->stats.logM = m;
-        printf("%f \n", IMFappo->stats.logM);
 
         if (maskB)
         {
             maskB = 0;
             free(mask);
+            mask = NULL;
         }
 
         mask = getMask(MM, size, m, &dim_a, tol);
+        if (mask == NULL)
+            goto cleanup_success;
         maskB = 1;
 
         ext_sig = 0;
         N_r = N;
-        
+
         if (N < dim_a)
         {
             ext_sig = 1;
@@ -458,10 +624,13 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
             if (fappoB)
             {
                 free(fappo);
+                fappo = NULL;
                 fappoB = 0;
             }
 
             fappo = (double *)malloc(sizeof(double) * N_r);
+            if (fappo == NULL)
+                goto cleanup_success;
             fappoB = 1;
 
             for (int i = 0; i < Nxs; i++)
@@ -470,32 +639,37 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
             if (hB)
             {
                 free(h);
+                h = NULL;
                 hB = 0;
             }
 
             h = (double *)malloc(sizeof(double) * N_r);
+            if (h == NULL)
+                goto cleanup_success;
             hB = 1;
             memcpy(h, fappo, sizeof(double) * N_r);
 
             if (fappoB)
             {
                 free(fappo);
+                fappo = NULL;
                 fappoB = 0;
             }
         }
 
         Nza = N_r - dim_a;
-        printf("N_r: %d, dim_a: %d, Nza : %d\n", N_r, dim_a, Nza);
 
         if (mappoB)
         {
             free(mappo);
+            mappo = NULL;
             mappoB = 0;
         }
 
-        mappo = (double *)malloc(sizeof(double) * N_r);
+        mappo = (double *)calloc((size_t)N_r, sizeof(double));
+        if (mappo == NULL)
+            goto cleanup_success;
         mappoB = 1;
-        for (int i = 0; i < N_r; i++) mappo[i] = 0;
 
         if ((Nza % 2) == 0)
         {
@@ -511,23 +685,29 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
         if (ifftAB)
         {
             free(ifftA);
+            ifftA = NULL;
             ifftAB = 0;
         }
 
-        ifftAB = 1;
         fflush(NULL);
         ifftA = realFFT(mappo, N_r);
         fflush(NULL);
+        if (ifftA == NULL)
+            goto cleanup_success;
+        ifftAB = 1;
 
         if (mappoB)
         {
             free(mappo);
+            mappo = NULL;
             mappoB = 0;
         }
 
         ffth_new = (fftwl_complex *)fftwl_malloc(sizeof(fftwl_complex) * N_r);
         ffth_old = (fftwl_complex *)fftwl_malloc(sizeof(fftwl_complex) * N_r);
         fftH = fft_dir(h, N_r);
+        if (ffth_new == NULL || ffth_old == NULL || fftH == NULL)
+            goto cleanup_success;
 
         posF = 0;
         df = -1.;
@@ -537,7 +717,6 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
             posF++;
         }
         posF--;
-        printf("Posf : %d\n", posF);
 
         IMFappo->stats.posF = posF;
         IMFappo->stats.valF = ifftA[posF];
@@ -548,7 +727,7 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
             if (ifftA[i] < 0)
                 ifftA[i] = 0;
         }
-        
+
         in_step = 0;
         while ((SD > DELTA) && (in_step < MaxInner))
         {
@@ -574,10 +753,19 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
         if (hB)
         {
             free(h);
+            h = NULL;
             hB = 0;
         }
 
         h = fft_inv(ffth_new, N_r);
+
+        fftwl_free(fftH);
+        fftwl_free(ffth_new);
+        fftwl_free(ffth_old);
+        fftH = ffth_new = ffth_old = NULL;
+
+        if (h == NULL)
+            goto cleanup_success;
         hB = 1;
 
         if (ext_sig)
@@ -588,28 +776,41 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
                 h[j++] = h[i];
 
             if (j == N)
-                h = (double *)realloc(h, sizeof(double) * N);
-            else
-                printf("Error in shrinking the signal from the extension!\n");
+            {
+                double *tmp = (double *)realloc(h, sizeof(double) * N);
+                if (tmp != NULL)
+                    h = tmp;
+            }
         }
 
         IMFappo->stats.in_step = in_step;
         IMFappo->dati = (double *)malloc(sizeof(double) * N);
+        if (IMFappo->dati == NULL)
+            goto cleanup_success;
 
         for (int i = 0; i < N; i++)
             IMFappo->dati[i] = h[i] * Norm1;
-        
+
         for (int i = 0; i < N; i++)
             f[i] -= h[i];
 
         next = (Fif_t *)malloc(sizeof(Fif_t));
+        if (next == NULL)
+        {
+            free(IMFappo->dati);
+            IMFappo->dati = NULL;
+            goto cleanup_success;
+        }
         memset(next, 0, sizeof(Fif_t));
         IMFappo->next = next;           
         IMFappo = next;
+        completedIMF++;
 
         N_r = 0;
 
         fappo = (double *)malloc(sizeof(double) * (N + 10));
+        if (fappo == NULL)
+            goto cleanup_success;
         fappoB = 1;
 
         for (int i = 0; i < N; i++)
@@ -619,13 +820,16 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
         }
 
         if (N_r == 0)
-            return IMF;
+            goto cleanup_success;
 
         memcpy(fappo + N_r, fappo, 10 * sizeof(double));
 
+        free_maxmins_struct(&MaxMin);
         if (logM >= 20)
         {
             double *sappo = (double *)malloc(sizeof(double) * (N + 10));
+            if (sappo == NULL)
+                goto cleanup_success;
             sappo[0] = fappo[0]; 
             sappo[1] = (fappo[0] + fappo[1]) / 2;
             sappo[2] = (fappo[0] + fappo[1] + fappo[2] + fappo[3]) / 4;
@@ -658,20 +862,47 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
 
         k_pp = MaxMin.nout;
 
+        if (fappoB)
+        {
+            free(fappo);
+            fappo = NULL;
+            fappoB = 0;
+        }
+
+        if (hB)
+        {
+            free(h);
+            h = NULL;
+            hB = 0;
+        }
+
         if (k_pp == 0)
         {
-            printf("#No extrema detected. numIMF=%d k_pp=%d N_r=%d\n", numIMF, k_pp, N_r);
-            return IMF;
+            goto cleanup_success;
         }
     }
 
     // save residual in the current tail node
     IMFappo->dati = (double *)malloc(sizeof(double) * N);
-    for (int i = 0; i < N; i++)
-        IMFappo->dati[i] = f[i] * Norm1;
+    if (IMFappo->dati != NULL)
+    {
+        for (int i = 0; i < N; i++)
+            IMFappo->dati[i] = f[i] * Norm1;
+    }
     IMFappo->next = NULL;
 
-    *maxIMF = numIMF;
+cleanup_success:
+    if (fftH != NULL) fftwl_free(fftH);
+    if (ffth_new != NULL) fftwl_free(ffth_new);
+    if (ffth_old != NULL) fftwl_free(ffth_old);
+    if (hB && h != NULL) free(h);
+    if (maskB && mask != NULL) free(mask);
+    if (mappoB && mappo != NULL) free(mappo);
+    if (ifftAB && ifftA != NULL) free(ifftA);
+    if (fappoB && fappo != NULL) free(fappo);
+    free_maxmins_struct(&MaxMin);
+
+    *maxIMF = completedIMF;
     fflush(NULL);
     return IMF;
 }

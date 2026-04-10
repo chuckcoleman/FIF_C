@@ -1,27 +1,75 @@
 # Macintosh only
-# Developed for MacOS 13.7.8
+# Auto-detects FFTW from:
+#   1) FFTW_PREFIX if provided
+#   2) /opt/local        (MacPorts)
+#   3) /opt/homebrew     (Homebrew Apple Silicon)
+#   4) /usr/local        (Homebrew Intel)
+#
+# Examples:
+#   make -f Makefile.mac test
+#   make -f Makefile.mac test CXX=clang++
+#   make -f Makefile.mac test FFTW_PREFIX=/custom/prefix
+#   make -f Makefile.mac test FFTW_INCLUDE=/path/include FFTW_LIB=/path/lib
 
-CXX = clang++
-CXXFLAGS = -x c++ -O3 -Wall -Wno-nullability-completeness -I/Users/Common/local/fftw3l/include
-LDFLAGS = -L/Users/Common/local/fftw3l/lib
-LDLIBS = -lfftw3l -lm
+CXX ?= clang++
+
+# Auto-detect FFTW prefix unless user supplied one
+ifndef FFTW_PREFIX
+  ifneq ("$(wildcard /opt/local/include/fftw3.h)","")
+    FFTW_PREFIX := /opt/local
+  else ifneq ("$(wildcard /opt/homebrew/include/fftw3.h)","")
+    FFTW_PREFIX := /opt/homebrew
+  else ifneq ("$(wildcard /usr/local/include/fftw3.h)","")
+    FFTW_PREFIX := /usr/local
+  endif
+endif
+
+FFTW_INCLUDE ?= $(FFTW_PREFIX)/include
+FFTW_LIB ?= $(FFTW_PREFIX)/lib
+
+CXXFLAGS_BASE = -x c++ -O3 -Wall -Wno-nullability-completeness
+CXXFLAGS ?= $(CXXFLAGS_BASE)
+CXXFLAGS += -I$(FFTW_INCLUDE)
+CXXFLAGS += $(CXXFLAGS_EXTRA)
+
+LDFLAGS ?=
+LDFLAGS += -L$(FFTW_LIB)
+LDFLAGS += $(LDFLAGS_EXTRA)
+
+LDLIBS ?= -lfftw3l -lm
 
 OBJ = Fif.o FFT.o interp.o TestFIF.o
+TARGET = test
 
-test: $(OBJ)
+all: check_fftw $(TARGET)
+
+check_fftw:
+	@if [ -z "$(FFTW_PREFIX)" ] || [ ! -f "$(FFTW_INCLUDE)/fftw3.h" ]; then \
+	  echo "Error: fftw3.h not found."; \
+	  echo "Searched: /opt/local, /opt/homebrew, /usr/local"; \
+	  echo "Set FFTW_PREFIX=/path/to/prefix or FFTW_INCLUDE=/path/include FFTW_LIB=/path/lib"; \
+	  exit 1; \
+	fi
+	@echo "Using FFTW from: $(FFTW_PREFIX)"
+	@echo "  Include: $(FFTW_INCLUDE)"
+	@echo "  Lib:     $(FFTW_LIB)"
+
+$(TARGET): $(OBJ)
 	$(CXX) $(OBJ) $(LDFLAGS) $(LDLIBS) -o $@
 
 Fif.o: Fif.c Fif.h FFT.h interp.h
-	$(CXX) $(CXXFLAGS) -c Fif.c -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 FFT.o: FFT.c FFT.h
-	$(CXX) $(CXXFLAGS) -c FFT.c -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 interp.o: interp.c interp.h
-	$(CXX) $(CXXFLAGS) -c interp.c -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 TestFIF.o: TestFIF.c Fif.h
-	$(CXX) $(CXXFLAGS) -c TestFIF.c -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o test
+	rm -f *.o $(TARGET)
+
+.PHONY: all clean check_fftw

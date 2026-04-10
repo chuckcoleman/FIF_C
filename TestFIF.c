@@ -16,10 +16,28 @@
 #include <memory.h>
 #include <math.h>
 #include <time.h>
+#include <fftw3.h>
 #include "Fif.h"
 
 #define lung 1000
 #define maxIMF 10 
+
+static void free_fif_result(Fif_t *head)
+{
+    if (head == NULL) return;
+
+    Fif_t *node = head->next;
+    free(head->dati);
+    head->dati = NULL;
+    head->next = NULL;
+
+    while (node != NULL) {
+        Fif_t *next = node->next;
+        free(node->dati);
+        free(node);
+        node = next;
+    }
+}
 
 int main(int varn, char *varc[]) {
     (void)varn;
@@ -29,11 +47,13 @@ int main(int varn, char *varc[]) {
     Fif_t *IMFappo;
     double f[lung];
     double t, dt;
-    clock_t begin_T, end_T;
-    double dT;
     double pi;
     int numIMF = maxIMF;
     char fname[32];
+    int exit_code = 0;
+    FILE *fil = NULL;
+
+    memset(&IMFs, 0, sizeof(IMFs));
 
     dt = 0.001; 
     pi = acos(-1.0);
@@ -48,7 +68,7 @@ int main(int varn, char *varc[]) {
     }
 
     snprintf(fname, sizeof(fname), "signal.dat");
-    FILE *fil = fopen(fname, "w");
+    fil = fopen(fname, "w");
     if (fil == NULL) {
         perror("fopen signal.dat");
         return 1;
@@ -57,16 +77,13 @@ int main(int varn, char *varc[]) {
         fprintf(fil, "%f\n", f[i]);
     }
     fclose(fil);
+    fil = NULL;
 
-    begin_T = clock();
 
     // RUN FIF
     IMFs = FIF_v2_1(f, lung, &numIMF);
 
-    end_T = clock();
-    dT = (double)(end_T - begin_T) / CLOCKS_PER_SEC;
-    printf("dt=%8.6f\n", dT);
-    printf("# IMFs extracted: %d (max %d)\n", numIMF, maxIMF);
+    /* Summary prints suppressed for cleaner Valgrind output on macOS. */
 
     IMFappo = &IMFs;
 
@@ -75,7 +92,8 @@ int main(int varn, char *varc[]) {
         fil = fopen(fname, "w");
         if (fil == NULL) {
             perror("fopen IMF output");
-            return 1;
+            exit_code = 1;
+            goto cleanup;
         }
 
         if (IMFappo->dati != NULL) {
@@ -85,6 +103,7 @@ int main(int varn, char *varc[]) {
         }
 
         fclose(fil);
+        fil = NULL;
         IMFappo = IMFappo->next;
     }
 
@@ -94,14 +113,22 @@ int main(int varn, char *varc[]) {
         fil = fopen(fname, "w");
         if (fil == NULL) {
             perror("fopen residual.dat");
-            return 1;
+            exit_code = 1;
+            goto cleanup;
         }
 
         for (int i = 0; i < lung; i++) {
             fprintf(fil, "%f\n", IMFappo->dati[i]);
         }
         fclose(fil);
+        fil = NULL;
     }
 
-    return 0;
+cleanup:
+    if (fil != NULL) {
+        fclose(fil);
+    }
+    free_fif_result(&IMFs);
+    fftwl_cleanup();
+    return exit_code;
 }
