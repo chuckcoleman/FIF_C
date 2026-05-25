@@ -534,7 +534,7 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
         f[i] /= Norm1;
 
     N_r = 0;
-    fappo = (double *)malloc(sizeof(double) * (N + 11));
+    fappo = (double *)calloc((size_t)(N + 11), sizeof(double));
     if (fappo == NULL)
         goto cleanup_success;
     fappoB = 1;
@@ -808,7 +808,7 @@ Fif_t FIF_v2_1(double *f, int N, int *maxIMF)
 
         N_r = 0;
 
-        fappo = (double *)malloc(sizeof(double) * (N + 10));
+        fappo = (double *)calloc((size_t)(N + 10), sizeof(double));
         if (fappo == NULL)
             goto cleanup_success;
         fappoB = 1;
